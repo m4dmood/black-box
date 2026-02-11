@@ -37,3 +37,10 @@ CREATE TABLE registry (
 -- Trasformiamo 'registry' in una Hypertable (Magia di TimescaleDB)
 -- Questo partiziona automaticamente i dati per tempo!
 SELECT create_hypertable('registry', 'ts');
+
+CREATE TABLE registry_errors (
+    ts TIMESTAMPTZ DEFAULT NOW(),
+    raw_data TEXT,          -- Salviamo l'intera riga CSV originale
+    error_message TEXT,     -- Perché è finita qui? (es. "FK Violation", "Invalid Number")
+    processed_at TIMESTAMPTZ DEFAULT NOW()
+);

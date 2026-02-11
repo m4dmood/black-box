@@ -45,7 +45,7 @@ func main() {
 	go func() {
 		for filePath := range fileQueue {
 			fmt.Printf("Inizio elaborazione: %s\n", filePath)
-			err := parser.ProcessFile(filePath)
+			_, err := parser.ProcessFile(filePath)
 			if err != nil {
 				fmt.Printf("Errore nel parsing di %s: %v\n", filePath, err)
 			}

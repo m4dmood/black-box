@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -15,7 +16,16 @@ type RegistryEntry struct {
 	EventMessage string
 }
 
-func ProcessFile(path string) error {
+func (r *RegistryEntry) ToRawString() string {
+	return "{ DeviceID: " + r.DeviceID +
+		", Timestamp: " + r.Timestamp +
+		", Value: " + strconv.FormatFloat(r.Value, 'f', -1, 64) +
+		", Level: " + r.Level +
+		", EventMessage: " + r.EventMessage + " }"
+}
+
+func ProcessFile(path string) ([]RegistryEntry, error) {
+	var entries []RegistryEntry
 	file, err := os.Open(path)
 
 	if err != nil {
@@ -50,12 +60,25 @@ func ProcessFile(path string) error {
 		timestamp := parts[2]
 		status := parts[3]
 
+		val, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			fmt.Printf("[DATA] Non-numeric value in row: %s", value)
+			continue
+		}
+
 		fmt.Printf("[DATA] Codice sensore: %s | Valore rilevato: %s | Timestamp: %s | Status: %s\n", id, value, timestamp, status)
+		entries = append(entries, RegistryEntry{
+			id,
+			timestamp,
+			val,
+			"INFO",
+			status,
+		})
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("Errore durante la lettura: %w", err)
+		return entries, fmt.Errorf("Errore durante la lettura: %w", err)
 	}
 
-	return nil
+	return entries, nil
 }
