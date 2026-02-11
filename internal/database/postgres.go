@@ -41,7 +41,7 @@ func (db *DB) InsertWithFallback(ctx context.Context, entry parser.RegistryEntry
 	_, err := db.Pool.Exec(ctx, query,
 		entry.Timestamp,
 		entry.DeviceID,
-		"data", // Per ora usiamo un valore fisso, ma in futuro potrebbe essere dinamico
+		"data",
 		entry.Value,
 		entry.EventMessage,
 		entry.Level,
