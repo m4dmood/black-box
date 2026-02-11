@@ -29,29 +29,29 @@ func ProcessFile(path string) ([]RegistryEntry, error) {
 	file, err := os.Open(path)
 
 	if err != nil {
-		fmt.Errorf("Errore apertura file : %s\n", err)
+		return entries, fmt.Errorf("[PARSER] Failed to open file -> %s\n", err)
 	}
 
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 
-	fmt.Printf("-------- Contenuto file %s --------\n", path)
+	fmt.Printf("-------- File content %s --------\n", path)
 
 	for scanner.Scan() {
-		// Cast riga file -> string
+		// Cast row to string
 		line := scanner.Text()
 
-		// Skip riga se vuota
+		// Skip empty rows
 		if len(strings.TrimSpace(line)) == 0 {
 			continue
 		}
 
-		// Parsing campi nella riga
+		// Parsing single fields
 		parts := strings.Split(line, ";")
 
 		if len(parts) < 4 {
-			fmt.Printf("Formato riga non valido: %s\n", line)
+			fmt.Printf("[PARSER] Invalid line format: %s\n", line)
 			continue
 		}
 
@@ -66,7 +66,11 @@ func ProcessFile(path string) ([]RegistryEntry, error) {
 			continue
 		}
 
-		fmt.Printf("[DATA] Codice sensore: %s | Valore rilevato: %s | Timestamp: %s | Status: %s\n", id, value, timestamp, status)
+		if err := scanner.Err(); err != nil {
+			return entries, fmt.Errorf("[PARSER] Error while reading data: %w", err)
+		}
+
+		fmt.Printf("[PARSER] Device code: %s | Value: %s | Timestamp: %s | Status: %s\n", id, value, timestamp, status)
 		entries = append(entries, RegistryEntry{
 			id,
 			timestamp,
@@ -74,10 +78,6 @@ func ProcessFile(path string) ([]RegistryEntry, error) {
 			"INFO",
 			status,
 		})
-	}
-
-	if err := scanner.Err(); err != nil {
-		return entries, fmt.Errorf("Errore durante la lettura: %w", err)
 	}
 
 	return entries, nil

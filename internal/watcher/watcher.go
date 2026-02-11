@@ -1,12 +1,13 @@
 package watcher
 
 import (
-	"log"
 	"fmt"
+	"log"
+
 	"github.com/fsnotify/fsnotify"
 )
 
-func Watch(path string, fileChan chan<-string) {
+func Watch(path string, fileChan chan<- string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
@@ -21,14 +22,14 @@ func Watch(path string, fileChan chan<-string) {
 				}
 
 				if event.Has(fsnotify.Create) {
-					fmt.Printf("Nuovo file rilevato: %s\n", event.Name)
+					fmt.Printf("[WATCHER] New file received: %s\n", event.Name)
 					fileChan <- event.Name
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
 				}
-				log.Println("Errore del watcher:", err)
+				log.Println("[WATCHER] Error:", err)
 			}
 		}
 	}()

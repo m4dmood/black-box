@@ -14,51 +14,51 @@ import (
 )
 
 func main() {
-	// 1. Creiamo un contesto principale che scadrà se non riusciamo a connetterci
+	// 1. Context creation for managing timeouts and cancellations
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	fmt.Println("Avvio del sistema Black-Box...")
+	fmt.Println("[BLACK_BOX] Starting Black-Box...")
 
-	// 2. Inizializziamo la connessione al Database
+	// 2. Database connection
 	db, err := database.Connect(ctx)
 	if err != nil {
-		fmt.Printf("Errore critico durante l'avvio del database: %v\n", err)
+		fmt.Printf("[BLACK_BOX] Critical error during database startup: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close()
 
-	// 3. Meccanismo per tenere vivo il software (Graceful Shutdown)
-	// Creiamo un canale che ascolta i segnali del Sistema Operativo
+	// 3. Keep software alive (Graceful Shutdown)
+	// Channel to listen for OS signals (e.g., Ctrl+C)
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	fmt.Println("Sistema pronto. In attesa di file CSV nella cartella 'inbox'...")
-	fmt.Println("Premi Ctrl+C per arrestare il servizio.")
+	fmt.Println("[BLACK_BOX] System is ready. Waiting for CSV files in the 'inbox' folder...")
+	fmt.Println("[BLACK_BOX] Press Ctrl+C to stop the service.")
 
-	//Invocazione watcher
+	// Start watcher and pass incoming data to channel
 	fileQueue := make(chan string, 100)
-	fmt.Println("Monitoraggio directory /inbox avviato...")
+	fmt.Println("[BLACK_BOX] Monitoring directory /inbox...")
 	watcher.Watch("./inbox", fileQueue)
 
-	// 4. Avviamo la logica di business in una goroutine separata
+	// 4. Elaboration loop: process incoming data from channel
 	go func() {
 		for filePath := range fileQueue {
-			fmt.Printf("Inizio elaborazione: %s\n", filePath)
+			fmt.Printf("[BLACK_BOX] File process started: %s\n", filePath)
 			_, err := parser.ProcessFile(filePath)
 			if err != nil {
-				fmt.Printf("Errore nel parsing di %s: %v\n", filePath, err)
+				fmt.Printf("[BLACK_BOX] Error while parsing file %s: %v\n", filePath, err)
 			}
 
 			os.Remove(filePath)
 		}
 	}()
 
-	// Il programma resta "bloccato" qui finché non riceve un segnale su 'stop'
+	// Application will keep running until it receives an interrupt signal
 	<-stop
 
-	fmt.Println("\nSegnale di arresto ricevuto. Chiusura in corso...")
+	fmt.Println("\n[BLACK_BOX] Stop signal received. Shutting down gracefully...")
 
-	// Qui potremmo aggiungere logiche per finire di processare i file pendenti
-	fmt.Println("Black-Box graceful shutdown completato con successo!")
+	// Successful shutdown message
+	fmt.Println("[BLACK_BOX] Black-Box graceful shutdown completed successfully!")
 }
