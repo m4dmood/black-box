@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/m4dmood/black-box/internal/database"
 	"github.com/m4dmood/black-box/internal/parser"
@@ -15,15 +14,15 @@ import (
 
 func main() {
 	// 1. Context creation for managing timeouts and cancellations
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
+	//defer cancel()
 
-	fmt.Println("[BLACK_BOX] Starting Black-Box...")
+	fmt.Println("[MAIN] Starting Black-Box...")
 
 	// 2. Database connection
 	db, err := database.Connect(ctx)
 	if err != nil {
-		fmt.Printf("[BLACK_BOX] Critical error during database startup: %v\n", err)
+		fmt.Printf("[MAIN] Critical error during database startup: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -33,21 +32,29 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	fmt.Println("[BLACK_BOX] System is ready. Waiting for CSV files in the 'inbox' folder...")
-	fmt.Println("[BLACK_BOX] Press Ctrl+C to stop the service.")
+	fmt.Println("[MAIN] System is ready. Waiting for CSV files in the 'inbox' folder...")
+	fmt.Println("[MAIN] Press Ctrl+C to stop the service.")
 
 	// Start watcher and pass incoming data to channel
 	fileQueue := make(chan string, 100)
-	fmt.Println("[BLACK_BOX] Monitoring directory /inbox...")
+	fmt.Println("[MAIN] Monitoring directory /inbox...")
 	watcher.Watch("./inbox", fileQueue)
 
 	// 4. Elaboration loop: process incoming data from channel
 	go func() {
 		for filePath := range fileQueue {
-			fmt.Printf("[BLACK_BOX] File process started: %s\n", filePath)
-			_, err := parser.ProcessFile(filePath)
+			fmt.Printf("[MAIN] File process started: %s\n", filePath)
+			entries, err := parser.ProcessFile(filePath)
+
 			if err != nil {
-				fmt.Printf("[BLACK_BOX] Error while parsing file %s: %v\n", filePath, err)
+				fmt.Printf("[MAIN] Error while parsing file %s: %v\n", filePath, err)
+			}
+
+			for _, entry := range entries {
+				err := db.InsertWithFallback(ctx, entry)
+				if err != nil {
+					fmt.Printf("[MAIN] Error while inserting entry into database: %v\n", err)
+				}
 			}
 
 			os.Remove(filePath)
@@ -57,8 +64,8 @@ func main() {
 	// Application will keep running until it receives an interrupt signal
 	<-stop
 
-	fmt.Println("\n[BLACK_BOX] Stop signal received. Shutting down gracefully...")
+	fmt.Println("\n[MAIN] Stop signal received. Shutting down gracefully...")
 
 	// Successful shutdown message
-	fmt.Println("[BLACK_BOX] Black-Box graceful shutdown completed successfully!")
+	fmt.Println("[MAIN] Black-Box graceful shutdown completed successfully!")
 }
