@@ -11,6 +11,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./sql/fake-data.sql:/docker-entrypoint-initdb.d/2-fake-data.sql
 
   grafana:
     image: grafana/grafana:latest

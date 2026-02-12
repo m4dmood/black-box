@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -16,12 +17,18 @@ type RegistryEntry struct {
 	EventMessage string
 }
 
+var uuidRegex = regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`)
+
 func (r *RegistryEntry) ToRawString() string {
 	return "{ DeviceID: " + r.DeviceID +
 		", Timestamp: " + r.Timestamp +
 		", Value: " + strconv.FormatFloat(r.Value, 'f', -1, 64) +
 		", Level: " + r.Level +
 		", EventMessage: " + r.EventMessage + " }"
+}
+
+func IsValidUUID(u string) bool {
+	return uuidRegex.MatchString(u)
 }
 
 func ProcessFile(path string) ([]RegistryEntry, error) {
@@ -60,9 +67,14 @@ func ProcessFile(path string) ([]RegistryEntry, error) {
 		timestamp := parts[2]
 		status := parts[3]
 
+		if !IsValidUUID(parts[0]) {
+			fmt.Printf("[PARSER] Salto riga: UUID malformato -> %s\n", parts[0])
+			continue // Salta alla prossima riga senza mandarla al DB
+		}
+
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			fmt.Printf("[DATA] Non-numeric value in row: %s", value)
+			fmt.Printf("[PARSER] Non-numeric value in row: %s", value)
 			continue
 		}
 
