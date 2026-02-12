@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/m4dmood/black-box/internal/parser"
 )
@@ -54,6 +55,31 @@ func (db *DB) InsertWithFallback(ctx context.Context, entry parser.RegistryEntry
 
 	fmt.Printf("[DATABASE] Logged event -> %v\n", entry)
 	return nil
+}
+
+func (db *DB) InsertBatch(ctx context.Context, entries []parser.RegistryEntry) (int64, error) {
+	// Definiamo quali colonne vogliamo mappare e da dove vengono
+	columns := []string{"ts", "device_id", "event_type", "val", "event_message", "level"}
+
+	// Trasformiamo la nostra slice di struct in una matrice di dati che pgx capisce
+	rows := [][]any{}
+	for _, e := range entries {
+		rows = append(rows, []any{e.Timestamp, e.DeviceID, "data", e.Value, e.EventMessage, e.Level})
+	}
+
+	// CopyFrom è un'operazione atomica: o entrano tutte o nessuna (molto veloce)
+	count, err := db.Pool.CopyFrom(
+		ctx,
+		pgx.Identifier{"registry"}, // Nome tabella
+		columns,
+		pgx.CopyFromRows(rows),
+	)
+
+	if err != nil {
+		return 0, fmt.Errorf("[DATABASE] Batch insert failed: %w", err)
+	}
+
+	return count, nil
 }
 
 func (db *DB) logErrorToTable(ctx context.Context, rawData string, reason string) {

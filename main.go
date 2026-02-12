@@ -43,18 +43,26 @@ func main() {
 	// 4. Elaboration loop: process incoming data from channel
 	go func() {
 		for filePath := range fileQueue {
-			fmt.Printf("[MAIN] File process started: %s\n", filePath)
-			entries, err := parser.ProcessFile(filePath)
+			fmt.Printf("[BLACK_BOX] Processing file: %s\n", filePath)
 
+			entries, err := parser.ProcessFile(filePath)
 			if err != nil {
-				fmt.Printf("[MAIN] Error while parsing file %s: %v\n", filePath, err)
+				fmt.Printf("[BLACK_BOX] Error parsing %s: %v\n", filePath, err)
+				continue
 			}
 
-			for _, entry := range entries {
-				err := db.InsertWithFallback(ctx, entry)
-				if err != nil {
-					fmt.Printf("[MAIN] Error while inserting entry into database: %v\n", err)
+			// Inserimento massivo!
+			count, err := db.InsertBatch(ctx, entries)
+			if err != nil {
+				fmt.Printf("[BLACK_BOX] Batch insert error: %v. Switching to fallback...\n", err)
+
+				// Se il batch fallisce (es. per un errore di FK in una riga),
+				// possiamo usare la vecchia logica riga per riga per salvare il salvabile
+				for _, entry := range entries {
+					db.InsertWithFallback(ctx, entry)
 				}
+			} else {
+				fmt.Printf("[BLACK_BOX] Successfully imported %d rows from %s\n", count, filePath)
 			}
 
 			os.Remove(filePath)
